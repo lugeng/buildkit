@@ -251,6 +251,17 @@ func buildAction(clicontext *cli.Context) error {
 		if err != nil {
 			return err
 		}
+
+		var ex client.ExportEntry
+		if len(solveOpt.Exports) == 1 {
+			ex = solveOpt.Exports[0]
+		}
+
+		if (ex.Type == "image" || ex.Type == "oci") {
+			ex.Attrs["result"]
+		}
+
+
 		for k, v := range resp.ExporterResponse {
 			logrus.Debugf("exporter response: %s=%s", k, v)
 		}

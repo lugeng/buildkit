@@ -45,7 +45,12 @@ type ImageWriter struct {
 	opt WriterOpt
 }
 
-func (ic *ImageWriter) Commit(ctx context.Context, inp exporter.Source, oci bool, compression blobs.CompressionType) (*ocispec.Descriptor, error) {
+type CommitResult struct {
+	*ocispec.Descriptor
+	ConfigDigest digest.Digest `json:"configDigest"`
+}
+
+func (ic *ImageWriter) Commit(ctx context.Context, inp exporter.Source, oci bool, compression blobs.CompressionType) (*CommitResult, error) {
 	platformsBytes, ok := inp.Metadata[exptypes.ExporterPlatformsKey]
 
 	if len(inp.Refs) > 0 && !ok {
@@ -115,7 +120,7 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp exporter.Source, oci bool
 		}
 		dp := p.Platform
 		desc.Platform = &dp
-		idx.Manifests = append(idx.Manifests, *desc)
+		idx.Manifests = append(idx.Manifests, *desc.Descriptor)
 
 		labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i)] = desc.Digest.String()
 	}
@@ -138,7 +143,9 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp exporter.Source, oci bool
 	}
 	idxDone(nil)
 
-	return &idxDesc, nil
+	return &CommitResult{
+		Descriptor: &idxDesc,
+	},nil
 }
 
 func (ic *ImageWriter) exportLayers(ctx context.Context, compression blobs.CompressionType, refs ...cache.ImmutableRef) ([][]blobs.DiffPair, error) {
@@ -167,7 +174,7 @@ func (ic *ImageWriter) exportLayers(ctx context.Context, compression blobs.Compr
 	return out, nil
 }
 
-func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, ref cache.ImmutableRef, config []byte, layers []blobs.DiffPair, oci bool, cache []byte) (*ocispec.Descriptor, error) {
+func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, ref cache.ImmutableRef, config []byte, layers []blobs.DiffPair, oci bool, cache []byte) (*CommitResult, error) {
 	if len(config) == 0 {
 		var err error
 		config, err = emptyImageConfig()
@@ -286,11 +293,14 @@ func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, ref cache
 	}
 	configDone(nil)
 
-	return &ocispec.Descriptor{
-		Digest:    mfstDigest,
-		Size:      int64(len(mfstJSON)),
-		MediaType: manifestType,
-	}, nil
+	return &CommitResult{
+		Descriptor: &ocispec.Descriptor{
+			Digest:    mfstDigest,
+			Size:      int64(len(mfstJSON)),
+			MediaType: manifestType,
+		},
+		ConfigDigest: configDigest,
+	},nil
 }
 
 func (ic *ImageWriter) ContentStore() content.Store {

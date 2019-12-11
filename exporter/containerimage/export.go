@@ -209,7 +209,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src exporter.Source)
 			if e.opt.Images != nil {
 				tagDone := oneOffProgress(ctx, "naming to "+targetName)
 				img := images.Image{
-					Target:    *desc,
+					Target:    *desc.Descriptor,
 					CreatedAt: time.Now(),
 				}
 				sfx := []string{""}
@@ -246,6 +246,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src exporter.Source)
 	}
 
 	resp["containerimage.digest"] = desc.Digest.String()
+	resp["containerimage.configDigest"] = desc.ConfigDigest.String()
 	return resp, nil
 }
 

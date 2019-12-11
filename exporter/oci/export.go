@@ -152,6 +152,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src exporter.Source)
 
 	resp := make(map[string]string)
 	resp["containerimage.digest"] = desc.Digest.String()
+	resp["containerimage.configDigest"] = desc.ConfigDigest.String()
 
 	if n, ok := src.Metadata["image.name"]; e.name == "*" && ok {
 		e.name = string(n)
@@ -166,7 +167,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src exporter.Source)
 		resp["image.name"] = strings.Join(names, ",")
 	}
 
-	expOpts := []archiveexporter.ExportOpt{archiveexporter.WithManifest(*desc, names...)}
+	expOpts := []archiveexporter.ExportOpt{archiveexporter.WithManifest(*desc.Descriptor, names...)}
 	switch e.opt.Variant {
 	case VariantOCI:
 		expOpts = append(expOpts, archiveexporter.WithAllPlatforms(), archiveexporter.WithSkipDockerManifest())
