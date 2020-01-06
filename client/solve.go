@@ -477,8 +477,8 @@ func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
 }
 
 func writeMetaDataFile(ex ExportEntry, exporterResponse map[string]string) error {
-	if ex.Type == ExporterOCI || ex.Type == ExporterDocker || ex.Type == ExporterImage {
-		if resultJsonFile, ok := ex.Attrs["metadata"]; ok {
+	if ex.Type == ExporterOCI || ex.Type == ExporterImage {
+		if resultJsonFile, ok := ex.Attrs["metadata-file"]; ok {
 			dir := filepath.Dir(resultJsonFile)
 			if _, err := os.Stat(dir); os.IsNotExist(err) {
 				err = os.MkdirAll(dir, os.ModePerm)
