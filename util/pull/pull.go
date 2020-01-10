@@ -114,7 +114,11 @@ func (p *Puller) Pull(ctx context.Context) (*Pulled, error) {
 			return nil, nil
 		}),
 	}
-	var schema1Converter *schema1.Converter
+
+	var (
+		schema1Converter       *schema1.Converter
+		isLegacyConvertible    bool
+	)
 	if p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
 		schema1Converter = schema1.NewConverter(p.ContentStore, fetcher)
 		handlers = append(handlers, schema1Converter)
@@ -131,8 +135,19 @@ func (p *Puller) Pull(ctx context.Context) (*Pulled, error) {
 			stopProgress()
 			return nil, err
 		}
+		// set isLegacyConvertible to true if there is application/octet-stream media type
+		convertibleHandler := images.HandlerFunc(
+			func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+				if desc.MediaType == docker.LegacyConfigMediaType {
+					isLegacyConvertible = true
+				}
+				return []ocispec.Descriptor{}, nil
+			},
+		)
+
 		handlers = append(handlers,
 			remotes.FetchHandler(p.ContentStore, fetcher),
+			convertibleHandler,
 			childrenHandler,
 			dslHandler,
 		)
@@ -143,6 +158,15 @@ func (p *Puller) Pull(ctx context.Context) (*Pulled, error) {
 		return nil, err
 	}
 	stopProgress()
+
+	if isLegacyConvertible {
+		converterFunc := func(ctx context.Context, desc ocispec.Descriptor) (ocispec.Descriptor, error) {
+			return docker.ConvertManifest(ctx, p.ContentStore, desc)
+		}
+		if p.desc, err = converterFunc(ctx, p.desc); err != nil {
+			return nil, err
+		}
+	}
 
 	var usedBlobs, unusedBlobs []ocispec.Descriptor
 
